@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Kalender Booking - StudioMusik Jjenaissante</title>
@@ -577,19 +578,19 @@
     <!-- Navigation -->
     <nav class="navbar" id="navbar">
         <div class="nav-container">
-            <a href="index.html" class="nav-logo">
+            <a href="/" class="nav-logo">
                 <i class="fas fa-music"></i>
                 <span>StudioMusik Jjenaissante</span>
             </a>
             
             <ul class="nav-menu" id="nav-menu">
-                <li><a href="index.html" class="nav-link">Beranda</a></li>
-                <li><a href="index.html#studios" class="nav-link">Studio</a></li>
-                <li><a href="calendar.html" class="nav-link active">Kalender</a></li>
-                <li><a href="index.html#booking" class="nav-link">Booking</a></li>
-                <li><a href="index.html#about" class="nav-link">Tentang</a></li>
+                <li><a href="/" class="nav-link">Beranda</a></li>
+                <li><a href="/#studios" class="nav-link">Studio</a></li>
+                <li><a href="/calendar" class="nav-link active">Kalender</a></li>
+                <li><a href="/history" class="nav-link">Riwayat</a></li>
+                <li><a href="/#about" class="nav-link">Tentang</a></li>
                 <li id="auth-section">
-                    <a href="login.html" class="nav-link" id="login-btn" style="background: var(--primary-color); color: white; padding: 0.5rem 1rem; border-radius: 0.5rem; margin-left: 1rem;">
+                    <a href="/login" class="nav-link" id="login-btn" style="background: var(--primary-color); color: white; padding: 0.5rem 1rem; border-radius: 0.5rem; margin-left: 1rem;">
                         <i class="fas fa-sign-in-alt"></i> Login
                     </a>
                 </li>
@@ -669,7 +670,7 @@
                         <button class="btn btn-primary" style="width: 100%;" onclick="openBookingForm()">
                             <i class="fas fa-plus"></i> Booking Baru
                         </button>
-                        <button class="btn btn-outline" style="width: 100%; margin-top: 0.5rem;" onclick="window.location.href='index.html#booking'">
+                        <button class="btn btn-outline" style="width: 100%; margin-top: 0.5rem;" onclick="window.location.href='/#booking'">
                             <i class="fas fa-arrow-right"></i> Form Booking
                         </button>
                     </div>
@@ -742,7 +743,7 @@
         // Check authentication status
         async function checkAuthStatus() {
             try {
-                const response = await fetch('api.php?endpoint=me');
+                const response = await fetch('/api/me');
                 const result = await response.json();
                 
                 if (result.success) {
@@ -759,7 +760,7 @@
             const authSection = document.getElementById('auth-section');
             if (currentUser) {
                 authSection.innerHTML = `
-                    <div class="nav-link" style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;" onclick="window.location.href='profile.html'">
+                    <div class="nav-link" style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;" onclick="window.location.href='/profile'">
                         <i class="fas fa-user-circle"></i>
                         <span>${currentUser.nama_user}</span>
                     </div>
@@ -803,7 +804,7 @@
         // Load studios
         async function loadStudios() {
             try {
-                const response = await fetch('api.php?endpoint=studios');
+                const response = await fetch('/api/studios');
                 const result = await response.json();
                 
                 if (result.success) {
@@ -830,11 +831,12 @@
         // Load all bookings
         async function loadAllBookings() {
             try {
-                const response = await fetch('api.php?endpoint=bookings');
+                const response = await fetch('/api/bookings');
                 const result = await response.json();
                 
                 if (result.success) {
                     allBookings = result.data;
+                    renderCalendar();
                 }
             } catch (error) {
                 console.error('Error loading bookings:', error);
@@ -867,10 +869,7 @@
             if (selectedStudio) {
                 filteredBookings = allBookings.filter(booking => {
                     const studio = studiosData.find(s => s.id_studio === selectedStudio);
-                    if (studio && studio.ruangan) {
-                        return studio.ruangan.some(r => r.id_ruangan === booking.id_ruangan);
-                    }
-                    return false;
+                    return booking.nama_studio === studio?.nama_studio;
                 });
             }
             
@@ -917,21 +916,31 @@
                     // Show booking count
                     const countElement = document.createElement('div');
                     countElement.className = 'booking-count';
-                    countElement.textContent = `${dayBookings.length} booking`;
+                    countElement.textContent = `${dayBookings.length} Slot`;
                     dayElement.appendChild(countElement);
                     
-                    // Show first few bookings
-                    dayBookings.slice(0, 2).forEach(booking => {
+                    // Show markers and descriptions
+                    dayBookings.slice(0, 3).forEach(booking => {
+                        const marker = document.createElement('div');
+                        marker.style.height = '4px';
+                        marker.style.width = '100%';
+                        marker.style.backgroundColor = 'var(--secondary-color)';
+                        marker.style.borderRadius = '2px';
+                        marker.style.marginBottom = '2px';
+                        dayElement.appendChild(marker);
+
                         const previewElement = document.createElement('div');
                         previewElement.className = 'booking-preview';
-                        previewElement.textContent = `${booking.jam_mulai} - ${booking.nama_studio}`;
+                        previewElement.style.fontSize = '0.65rem';
+                        previewElement.textContent = `${booking.jam_mulai} ${booking.nama_ruangan}`;
                         dayElement.appendChild(previewElement);
                     });
                     
-                    if (dayBookings.length > 2) {
+                    if (dayBookings.length > 3) {
                         const moreElement = document.createElement('div');
                         moreElement.className = 'booking-preview';
-                        moreElement.textContent = `+${dayBookings.length - 2} lainnya`;
+                        moreElement.style.fontSize = '0.65rem';
+                        moreElement.textContent = `+${dayBookings.length - 3} slot lainnya`;
                         dayElement.appendChild(moreElement);
                     }
                 }
@@ -1020,7 +1029,7 @@
                     <div class="text-center">
                         <i class="fas fa-sign-in-alt" style="font-size: 3rem; color: var(--primary-color); margin-bottom: 1rem;"></i>
                         <p>Silakan login terlebih dahulu untuk melakukan booking.</p>
-                        <button class="btn btn-primary" onclick="window.location.href='login.html'">Login</button>
+                        <button class="btn btn-primary" onclick="window.location.href='/login'">Login</button>
                         <button class="btn btn-outline" onclick="closeModal()" style="margin-left: 0.5rem;">Batal</button>
                     </div>
                 `);
@@ -1033,7 +1042,7 @@
             }
             
             // Redirect to booking form with selected date
-            window.location.href = `index.html#booking?date=${selectedDate}`;
+            window.location.href = `/#booking?date=${selectedDate}`;
         }
 
         // Utility functions

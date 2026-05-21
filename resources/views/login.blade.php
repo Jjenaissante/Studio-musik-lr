@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login - StudioMusik Jjenaissante</title>
@@ -201,7 +202,7 @@
         </form>
 
         <div class="login-footer">
-            Belum punya akun? <a href="register.html">Daftar Sekarang</a>
+            Belum punya akun? <a href="/register">Daftar Sekarang</a>
         </div>
     </div>
 
@@ -220,7 +221,7 @@
             btnSubmit.disabled = true;
 
             try {
-                const response = await fetch('/login', {
+                const response = await fetch('/auth/login', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',

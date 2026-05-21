@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Riwayat Booking - StudioMusik Jjenaissante</title>
@@ -526,10 +527,10 @@
                 <li><a href="index.html" class="nav-link">Beranda</a></li>
                 <li><a href="index.html#studios" class="nav-link">Studio</a></li>
                 <li><a href="calendar.html" class="nav-link">Kalender</a></li>
-                <li><a href="history.html" class="nav-link active">Riwayat</a></li>
+                <li><a href="/history" class="nav-link active">Riwayat</a></li>
                 <li><a href="index.html#about" class="nav-link">Tentang</a></li>
                 <li id="auth-section">
-                    <a href="login.html" class="nav-link" id="login-btn" style="background: var(--primary-color); color: white; padding: 0.5rem 1rem; border-radius: 0.5rem; margin-left: 1rem;">
+                    <a href="/login" class="nav-link" id="login-btn" style="background: var(--primary-color); color: white; padding: 0.5rem 1rem; border-radius: 0.5rem; margin-left: 1rem;">
                         <i class="fas fa-sign-in-alt"></i> Login
                     </a>
                 </li>
@@ -715,7 +716,7 @@
         // Check authentication status
         async function checkAuthStatus() {
             try {
-                const response = await fetch('api.php?endpoint=me');
+                const response = await fetch('/api/me');
                 const result = await response.json();
                 
                 if (result.success) {
@@ -727,7 +728,7 @@
                         <div class="text-center">
                             <i class="fas fa-sign-in-alt" style="font-size: 3rem; color: var(--primary-color); margin-bottom: 1rem;"></i>
                             <p>Silakan login terlebih dahulu untuk melihat riwayat booking.</p>
-                            <button class="btn btn-primary" onclick="window.location.href='login.html'">Login</button>
+                            <button class="btn btn-primary" onclick="window.location.href='/login'">Login</button>
                             <button class="btn btn-outline" onclick="window.location.href='index.html'" style="margin-left: 0.5rem;">Kembali</button>
                         </div>
                     `);
@@ -778,7 +779,7 @@
             if (!currentUser) return;
             
             try {
-                const response = await fetch(`api.php?endpoint=bookings&user_id=${currentUser.id_user}`);
+                const response = await fetch(`/api/bookings?user_id=${currentUser.id_user}`);
                 const result = await response.json();
                 
                 if (result.success) {
@@ -1064,8 +1065,9 @@
             btn.disabled = true;
 
             try {
-                const response = await fetch('api.php?endpoint=upload-proof', {
+                const response = await fetch('/api/upload-proof', {
                     method: 'POST',
+                    headers: { "X-CSRF-TOKEN": document.querySelector('meta[name="csrf-token"]').getAttribute('content') },
                     body: formData
                 });
                 const result = await response.json();

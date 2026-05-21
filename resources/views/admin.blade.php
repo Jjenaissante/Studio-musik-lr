@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin - Manajemen Booking StudioMusik</title>
@@ -480,7 +481,7 @@
                 </a>
             </li>
             <li style="margin-top: 2rem; padding-top: 1rem; border-top: 1px solid var(--gray-700);">
-                <a href="index.html">
+                <a href="/">
                     <i class="fas fa-home"></i>
                     <span>Halaman Utama</span>
                 </a>
@@ -758,13 +759,13 @@
             // 1. Cek LocalStorage dulu untuk menghindari redirect visual (flash)
             const localData = localStorage.getItem('user');
             if (!localData) {
-                window.location.href = 'login.html';
+                window.location.href = '/login';
                 return;
             }
 
             const localUser = JSON.parse(localData);
             if (localUser.role !== 'admin') {
-                window.location.href = 'index.html';
+                window.location.href = '/';
                 return;
             }
 
@@ -773,20 +774,20 @@
 
             // 2. Verifikasi ke Server
             try {
-                const response = await fetch('api.php?endpoint=me&t=' + new Date().getTime());
+                const response = await fetch('/api/me?t=' + new Date().getTime());
                 const result = await response.json();
                 
                 if (result.success) {
                     currentUser = result.user;
                     // Pastikan yang login benar-benar admin
                     if (currentUser.role !== 'admin') {
-                        window.location.href = 'index.html';
+                        window.location.href = '/';
                     }
                 } else {
                     // Jika server menolak sesi (session expired)
                     console.error("Session invalid via API");
                     localStorage.removeItem('user');
-                    window.location.href = 'login.html';
+                    window.location.href = '/login';
                 }
             } catch (error) {
                 console.error("Network error checking auth, staying on page based on localStorage");
@@ -833,7 +834,7 @@
         // Load dashboard statistics
         async function loadDashboardStats() {
             try {
-                const response = await fetch('api.php?endpoint=dashboard-stats');
+                const response = await fetch('/api/dashboard-stats');
                 const result = await response.json();
                 
                 if (result.success) {
@@ -851,7 +852,7 @@
         // Load recent bookings
         async function loadRecentBookings() {
             try {
-                const response = await fetch('api.php?endpoint=recent-bookings&limit=5');
+                const response = await fetch('/api/recent-bookings?limit=5');
                 const result = await response.json();
                 
                 if (result.success) {
@@ -895,7 +896,7 @@
             const statusFilter = document.getElementById('filter-status-admin').value;
             
             try {
-                let url = 'api.php?endpoint=bookings';
+                let url = '/api/bookings';
                 if (statusFilter) {
                     url += `&status=${statusFilter}`;
                 }
@@ -977,7 +978,7 @@
         // Load studios management
         async function loadStudiosManagement() {
             try {
-                const response = await fetch('api.php?endpoint=studios');
+                const response = await fetch('/api/studios');
                 const result = await response.json();
                 
                 if (result.success) {
@@ -1033,7 +1034,7 @@
         // Load users data
         async function loadUsersData() {
             try {
-                const response = await fetch('api.php?endpoint=users');
+                const response = await fetch('/api/users');
                 const result = await response.json();
                 
                 if (result.success) {
@@ -1074,9 +1075,9 @@
         async function confirmBooking(bookingId) {
             if (confirm(`Konfirmasi booking ${bookingId}?`)) {
                 try {
-                    const response = await fetch('api.php?endpoint=confirm-booking', {
+                    const response = await fetch('/api/confirm-booking', {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
+                        headers: { "X-CSRF-TOKEN": "{{ csrf_token() }}",  'Content-Type': 'application/json' },
                         body: JSON.stringify({ id_booking: bookingId })
                     });
 
@@ -1099,9 +1100,9 @@
         async function cancelBooking(bookingId) {
             if (confirm(`Batalkan booking ${bookingId}?`)) {
                 try {
-                    const response = await fetch('api.php?endpoint=cancel-booking', {
+                    const response = await fetch('/api/cancel-booking', {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
+                        headers: { "X-CSRF-TOKEN": "{{ csrf_token() }}",  'Content-Type': 'application/json' },
                         body: JSON.stringify({ id_booking: bookingId })
                     });
 
@@ -1172,12 +1173,15 @@
         function logout() {
             if (confirm('Apakah Anda yakin ingin logout?')) {
                 // Clear session and redirect
-                fetch('auth.php?action=logout', {
+                fetch('/auth/logout', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' }
+                    headers: {
+                        "X-CSRF-TOKEN": "{{ csrf_token() }}",
+                        'Content-Type': 'application/json'
+                    }
                 }).finally(() => {
                     localStorage.removeItem('user');
-                    window.location.href = 'login.html';
+                    window.location.href = '/login';
                 });
             }
         }
@@ -1299,9 +1303,12 @@
             };
             
             try {
-                const res = await fetch('api.php?endpoint=update-room', {
+                const res = await fetch('/api/update-room', {
                     method: 'POST', 
-                    headers:{'Content-Type':'application/json'}, 
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                    },
                     body: JSON.stringify(body)
                 });
                 const json = await res.json();
@@ -1319,9 +1326,12 @@
         async function deleteRoom(id) {
             if(!confirm('Yakin ingin menghapus ruangan ini?')) return;
             try {
-                const res = await fetch('api.php?endpoint=delete-room', {
+                const res = await fetch('/api/delete-room', {
                     method: 'POST', 
-                    headers:{'Content-Type':'application/json'}, 
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                    },
                     body: JSON.stringify({id_ruangan: id})
                 });
                 const json = await res.json();

@@ -995,7 +995,7 @@
         // Check authentication status
         async function checkAuthStatus() {
             try {
-                const response = await fetch('api.php?endpoint=me');
+                const response = await fetch('/api/me');
                 const result = await response.json();
                 
                 if (result.success) {
@@ -1003,10 +1003,10 @@
                     updateProfileHeader();
                     loadOverviewData();
                 } else {
-                    window.location.href = 'login.html';
+                    window.location.href = '/login';
                 }
             } catch (error) {
-                window.location.href = 'login.html';
+                window.location.href = '/login';
             }
         }
 
@@ -1089,7 +1089,7 @@
             if (!currentUser) return;
             
             try {
-                const response = await fetch(`api.php?endpoint=bookings&user_id=${currentUser.id_user}`);
+                const response = await fetch(`/api/bookings?user_id=${currentUser.id_user}`);
                 const result = await response.json();
                 
                 if (result.success) {
@@ -1218,9 +1218,9 @@
             };
 
             try {
-                const response = await fetch('api.php?endpoint=update-profile', {
+                const response = await fetch('/api/update-profile', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { "X-CSRF-TOKEN": document.querySelector('meta[name="csrf-token"]').getAttribute('content'), "Content-Type": "application/json" },
                     body: JSON.stringify(data)
                 });
 
@@ -1262,9 +1262,9 @@
             }
 
             try {
-                const response = await fetch('api.php?endpoint=change-password', {
+                const response = await fetch('/api/change-password', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { "X-CSRF-TOKEN": document.querySelector('meta[name="csrf-token"]').getAttribute('content'), "Content-Type": "application/json" },
                     body: JSON.stringify(data)
                 });
 
@@ -1285,9 +1285,9 @@
         async function cancelBooking(bookingId) {
             if (confirm('Apakah Anda yakin ingin membatalkan booking ini?')) {
                 try {
-                    const response = await fetch('api.php?endpoint=cancel-booking', {
+                    const response = await fetch('/api/cancel-booking', {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
+                    headers: { "X-CSRF-TOKEN": document.querySelector('meta[name="csrf-token"]').getAttribute('content'), "Content-Type": "application/json" },
                         body: JSON.stringify({ id_booking: bookingId })
                     });
 
@@ -1350,7 +1350,7 @@
                     setTimeout(() => {
                         // Clear session and redirect
                         localStorage.removeItem('user');
-                        window.location.href = 'login.html';
+                        window.location.href = '/login';
                     }, 2000);
                 }
             }

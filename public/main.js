@@ -18,6 +18,17 @@ document.addEventListener('DOMContentLoaded', function() {
     if (document.getElementById('studios-grid')) {
         loadStudios();
     }
+
+    // 4. Booking Form logic
+    const bookingForm = document.getElementById('booking-form');
+    if (bookingForm) {
+        bookingForm.addEventListener('submit', handleBookingSubmit);
+    }
+
+    const studioSelect = document.getElementById('studio');
+    if (studioSelect) {
+        studioSelect.addEventListener('change', populateRoomDropdown);
+    }
 });
 
 // ============================
@@ -26,8 +37,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 async function checkAuthStatus() {
     try {
-        // Tetap arahkan ke api.php yang ada di folder public untuk sementara
-        const response = await fetch('api.php?endpoint=me');
+        const response = await fetch('/api/me');
         const result = await response.json();
         
         if (result.success) {
@@ -47,12 +57,28 @@ function updateAuthSection() {
     
     authSection.innerHTML = `
         <div style="display: flex; align-items: center; gap: 10px;">
-            <span class="nav-link"><i class="fas fa-user-circle"></i> ${currentUser.nama_user}</span>
+            <a href="/profile" class="nav-link"><i class="fas fa-user-circle"></i> ${currentUser.nama_user}</a>
             <a href="#" onclick="handleLogout()" style="color: var(--danger-color); font-size: 1.2rem;">
                 <i class="fas fa-sign-out-alt"></i>
             </a>
         </div>
     `;
+}
+
+async function handleLogout() {
+    if (confirm('Apakah Anda yakin ingin logout?')) {
+        try {
+            const response = await fetch('/auth/logout', {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                }
+            });
+            window.location.href = '/login';
+        } catch (error) {
+            console.error('Logout failed:', error);
+        }
+    }
 }
 
 // ============================
@@ -61,7 +87,7 @@ function updateAuthSection() {
 
 async function loadStudios() {
     try {
-        const response = await fetch('api.php?endpoint=studios');
+        const response = await fetch('/api/studios');
         const result = await response.json();
         if (result.success) {
             studiosData = result.data;
@@ -104,19 +130,104 @@ function renderStudios() {
     });
 }
 
+function populateStudioDropdown() {
+    const select = document.getElementById('studio');
+    if (!select) return;
+
+    // Clear existing options except first
+    while (select.options.length > 1) {
+        select.remove(1);
+    }
+
+    studiosData.forEach(studio => {
+        const option = document.createElement('option');
+        option.value = studio.id_studio;
+        option.textContent = studio.nama_studio;
+        select.appendChild(option);
+    });
+}
+
+function populateRoomDropdown() {
+    const studioId = document.getElementById('studio').value;
+    const roomSelect = document.getElementById('ruangan');
+    if (!roomSelect) return;
+
+    // Clear existing
+    while (roomSelect.options.length > 1) {
+        roomSelect.remove(1);
+    }
+
+    if (!studioId) return;
+
+    const studio = studiosData.find(s => s.id_studio === studioId);
+    if (studio && studio.ruangan) {
+        studio.ruangan.forEach(room => {
+            const option = document.createElement('option');
+            option.value = room.id_ruangan;
+            option.textContent = `${room.nama_ruangan} - Rp ${parseInt(room.tarif_per_jam).toLocaleString('id-ID')}/jam`;
+            roomSelect.appendChild(option);
+        });
+    }
+}
+
 // Fungsi tambahan agar saat klik "Pilih Studio", dropdown di form otomatis terisi
 function pilihStudioUntukBooking(idStudio) {
     const selectStudio = document.getElementById('studio');
     if (selectStudio) {
         selectStudio.value = idStudio;
         // Trigger event change manual agar dropdown ruangan ikut update
-        selectStudio.dispatchEvent(new Event('change'));
+        populateRoomDropdown();
         window.location.href = '#booking';
     }
 }
 
 // ============================
-// 3. UI HELPERS (Nav & Modal)
+// 3. BOOKING SUBMISSION
+// ============================
+
+async function handleBookingSubmit(e) {
+    e.preventDefault();
+
+    if (!currentUser) {
+        showModal('Login Diperlukan', '<p>Anda harus login terlebih dahulu untuk melakukan booking.</p><br><a href="/login" class="btn btn-primary">Ke Halaman Login</a>');
+        return;
+    }
+
+    const formData = {
+        id_user: currentUser.id_user,
+        id_ruangan: document.getElementById('ruangan').value,
+        tanggal_booking: document.getElementById('tanggal').value,
+        jam_mulai: document.getElementById('jam_mulai').value,
+        durasi: document.getElementById('durasi').value,
+        catatan: ''
+    };
+
+    try {
+        const response = await fetch('/api/booking', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+            },
+            body: JSON.stringify(formData)
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            showModal('Sukses!', `<p>Booking berhasil dibuat! ID Booking: <strong>${result.data.id_booking}</strong></p><p>Silakan lakukan pembayaran di menu Riwayat.</p><br><a href="/history" class="btn btn-primary">Lihat Riwayat</a>`);
+            document.getElementById('booking-form').reset();
+        } else {
+            showModal('Gagal', `<p>${result.message}</p>`);
+        }
+    } catch (error) {
+        console.error('Booking error:', error);
+        showModal('Error', '<p>Terjadi kesalahan sistem. Coba lagi nanti.</p>');
+    }
+}
+
+// ============================
+// 4. UI HELPERS (Nav & Modal)
 // ============================
 
 function initializeNavigation() {
@@ -143,4 +254,4 @@ function showModal(title, content) {
     document.getElementById('modal').classList.add('active');
 }
 
-console.log('Main JS Pangkas Berhasil Dimuat!');
+console.log('Main JS Laravel Berhasil Dimuat!');

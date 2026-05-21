@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Detail Studio - StudioMusik Jjenaissante</title>
@@ -533,19 +534,19 @@
     <!-- Navigation -->
     <nav class="navbar" id="navbar">
         <div class="nav-container">
-            <a href="index.html" class="nav-logo">
+            <a href="/" class="nav-logo">
                 <i class="fas fa-music"></i>
                 <span>StudioMusik Jjenaissante</span>
             </a>
             
             <ul class="nav-menu" id="nav-menu">
-                <li><a href="index.html" class="nav-link">Beranda</a></li>
-                <li><a href="index.html#studios" class="nav-link">Studio</a></li>
-                <li><a href="calendar.html" class="nav-link">Kalender</a></li>
-                <li><a href="index.html#booking" class="nav-link">Booking</a></li>
-                <li><a href="index.html#about" class="nav-link">Tentang</a></li>
+                <li><a href="/" class="nav-link">Beranda</a></li>
+                <li><a href="/#studios" class="nav-link">Studio</a></li>
+                <li><a href="/calendar" class="nav-link">Kalender</a></li>
+                <li><a href="/#booking" class="nav-link">Booking</a></li>
+                <li><a href="/#about" class="nav-link">Tentang</a></li>
                 <li id="auth-section">
-                    <a href="login.html" class="nav-link" id="login-btn" style="background: var(--primary-color); color: white; padding: 0.5rem 1rem; border-radius: 0.5rem; margin-left: 1rem;">
+                    <a href="/login" class="nav-link" id="login-btn" style="background: var(--primary-color); color: white; padding: 0.5rem 1rem; border-radius: 0.5rem; margin-left: 1rem;">
                         <i class="fas fa-sign-in-alt"></i> Login
                     </a>
                 </li>
@@ -631,10 +632,10 @@
                     </div>
                     
                     <div style="margin-top: 2rem; padding-top: 2rem; border-top: 1px solid var(--gray-200);">
-                        <button class="btn btn-primary" onclick="window.location.href='index.html#booking'">
+                        <button class="btn btn-primary" onclick="window.location.href='/#booking'">
                             <i class="fas fa-calendar-check"></i> Booking Sekarang
                         </button>
-                        <button class="btn btn-outline" onclick="window.location.href='calendar.html'" style="margin-top: 0.5rem;">
+                        <button class="btn btn-outline" onclick="window.location.href='/calendar'" style="margin-top: 0.5rem;">
                             <i class="fas fa-calendar-alt"></i> Lihat Kalender
                         </button>
                     </div>
@@ -702,7 +703,7 @@
         // Check authentication status
         async function checkAuthStatus() {
             try {
-                const response = await fetch('api.php?endpoint=me');
+                const response = await fetch('/api/me');
                 const result = await response.json();
                 
                 if (result.success) {
@@ -719,7 +720,7 @@
             const authSection = document.getElementById('auth-section');
             if (currentUser) {
                 authSection.innerHTML = `
-                    <div class="nav-link" style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;" onclick="window.location.href='profile.html'">
+                    <div class="nav-link" style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;" onclick="window.location.href='/profile'">
                         <i class="fas fa-user-circle"></i>
                         <span>${currentUser.nama_user}</span>
                     </div>
@@ -938,7 +939,7 @@
                     <div class="text-center">
                         <i class="fas fa-sign-in-alt" style="font-size: 3rem; color: var(--primary-color); margin-bottom: 1rem;"></i>
                         <p>Silakan login terlebih dahulu untuk melakukan booking.</p>
-                        <button class="btn btn-primary" onclick="window.location.href='login.html'">Login</button>
+                        <button class="btn btn-primary" onclick="window.location.href='/login'">Login</button>
                         <button class="btn btn-outline" onclick="closeModal()" style="margin-left: 0.5rem;">Batal</button>
                     </div>
                 `);
@@ -946,7 +947,7 @@
             }
             
             // Redirect to booking form with room pre-selected
-            window.location.href = `index.html#booking?room=${roomId}`;
+            window.location.href = `/#booking?room=${roomId}`;
         }
 
         // Utility functions

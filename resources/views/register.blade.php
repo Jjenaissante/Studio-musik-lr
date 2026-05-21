@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Daftar Akun - StudioMusik Jjenaissante</title>
@@ -286,7 +287,7 @@
             </div>
             
             <div class="auth-footer">
-                <p>Sudah punya akun? <a href="login.html">Login di sini</a></p>
+                <p>Sudah punya akun? <a href="/login">Login di sini</a></p>
             </div>
         </div>
     </div>
@@ -301,12 +302,12 @@
         // Check authentication status
         async function checkAuthStatus() {
             try {
-                const response = await fetch('api.php?endpoint=me');
+                const response = await fetch('/api/me');
                 const result = await response.json();
                 
                 if (result.success) {
                     // User is already logged in, redirect to home
-                    window.location.href = 'index.html';
+                    window.location.href = '/';
                 }
             } catch (error) {
                 console.log('User not logged in');
@@ -407,9 +408,9 @@
             btnSubmit.disabled = true;
 
             try {
-                const response = await fetch('auth.php?action=register', {
+                const response = await fetch('/auth/register', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { "X-CSRF-TOKEN": "{{ csrf_token() }}",  'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         name: nama,
                         email: email,
@@ -425,7 +426,7 @@
                     
                     // Redirect after 2 seconds
                     setTimeout(() => {
-                        window.location.href = 'login.html';
+                        window.location.href = '/login';
                     }, 2000);
                 } else {
                     showAlert(result.message, 'error');

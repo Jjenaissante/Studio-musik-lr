@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Home')
+@section('title', 'Beranda')
 
 @section('content')
     {{-- Hero Section --}}
@@ -24,7 +24,8 @@
                 <p class="section-subtitle">Fasilitas lengkap dengan kualitas suara terbaik.</p>
             </div>
             <div class="grid grid-3" id="studios-grid">
-                </div>
+                {{-- Data will be loaded by JavaScript --}}
+            </div>
         </div>
     </section>
 
@@ -86,6 +87,27 @@
                             Booking Sekarang!
                         </button>
                     </form>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    {{-- About Section --}}
+    <section class="section" id="about">
+        <div class="container">
+            <div class="grid grid-2 flex-items-center">
+                <div>
+                    <img src="{{ asset('img/studio1.png') }}" alt="Tentang Kami" style="width: 100%; border-radius: 1rem; box-shadow: var(--shadow-lg);">
+                </div>
+                <div>
+                    <h2 class="section-title" style="text-align: left;">Kenapa Memilih Kami?</h2>
+                    <p style="margin-bottom: 1.5rem; color: var(--gray-600);">Kami menyediakan fasilitas studio musik terbaik dengan peralatan standar profesional untuk menunjang kreativitas bermusik Anda.</p>
+                    <ul style="list-style: none;">
+                        <li style="margin-bottom: 0.75rem;"><i class="fas fa-check-circle" style="color: var(--accent-color); margin-right: 0.5rem;"></i> Peralatan Musik Berkualitas</li>
+                        <li style="margin-bottom: 0.75rem;"><i class="fas fa-check-circle" style="color: var(--accent-color); margin-right: 0.5rem;"></i> Ruangan Kedap Suara Akustik Profesional</li>
+                        <li style="margin-bottom: 0.75rem;"><i class="fas fa-check-circle" style="color: var(--accent-color); margin-right: 0.5rem;"></i> Sistem Booking Online 24 Jam</li>
+                        <li style="margin-bottom: 0.75rem;"><i class="fas fa-check-circle" style="color: var(--accent-color); margin-right: 0.5rem;"></i> Harga Terjangkau</li>
+                    </ul>
                 </div>
             </div>
         </div>
