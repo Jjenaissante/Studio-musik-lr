@@ -2,9 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 
 class AuthController extends Controller
 {
@@ -23,13 +24,11 @@ class AuthController extends Controller
             'password' => 'required',
         ]);
 
-        // 2. Cari user secara manual di tabel 'user' lama kamu
-        $user = DB::table('user')->where('email', $request->email)->first();
-
-        // 3. Verifikasi Password (menggunakan password_verify bawaan laravel)
-        if ($user && \Hash::check($request->password, $user->password)) {
+        // 2. Attempt login using Laravel's Auth facade
+        if (Auth::attempt(['email' => $request->email, 'password' => $request->password])) {
+            $user = Auth::user();
             
-            // Set session login ala Laravel manual agar sinkron dengan database lamamu
+            // Sync session variables if needed for legacy compatibility
             session([
                 'user_id'   => $user->id_user,
                 'role'      => $user->role,
@@ -39,7 +38,12 @@ class AuthController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'Login berhasil!'
+                'message' => 'Login berhasil!',
+                'user' => [
+                    'id_user' => $user->id_user,
+                    'role' => $user->role,
+                    'nama_user' => $user->nama_user
+                ]
             ]);
         }
 
@@ -48,5 +52,59 @@ class AuthController extends Controller
             'success' => false,
             'message' => 'Email atau password salah!'
         ], 401);
+    }
+
+    public function showRegister()
+    {
+        return view('register');
+    }
+
+    public function register(Request $request)
+    {
+        $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => 'required|string|email|max:255|unique:user',
+            'password' => 'required|string|min:8',
+        ]);
+
+        $user = User::create([
+            'nama_user' => $request->name,
+            'email' => $request->email,
+            'no_hp' => $request->no_hp,
+            'password' => $request->password, // Will be hashed by model cast
+            'role' => 'user',
+        ]);
+
+        return response()->json(['success' => true, 'message' => 'Registrasi berhasil!']);
+    }
+
+    public function logout(Request $request)
+    {
+        Auth::logout();
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
+
+        return response()->json(['success' => true, 'message' => 'Logout berhasil']);
+    }
+
+    public function me()
+    {
+        if (Auth::check()) {
+            $user = Auth::user();
+            return response()->json([
+                'success' => true,
+                'user' => [
+                    'id_user' => $user->id_user,
+                    'role' => $user->role,
+                    'nama_user' => $user->nama_user
+                ]
+            ]);
+        }
+        return response()->json(['success' => false, 'message' => 'Not logged in']);
+    }
+
+    public function profile()
+    {
+        return view('profile');
     }
 }

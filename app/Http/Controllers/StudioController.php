@@ -2,17 +2,36 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Studio;
+use App\Models\Ruangan;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB; // Baris ini wajib ada untuk akses database
 
 class StudioController extends Controller
 {
     public function index()
     {
-        // Ambil data dari tabel studio kamu (pastikan nama tabelnya benar)
-        $studios = DB::table('studio')->get();
-
-        // Kirim datanya ke file index.blade.php
-        return view('index', ['studio' => $studios]);
+        $studios = Studio::with('ruangans')->get();
+        return view('index', compact('studios'));
     }
-}   
+
+    public function show($id)
+    {
+        $studio = Studio::with('ruangans')->findOrFail($id);
+        return view('studio-detail', compact('studio'));
+    }
+
+    public function getStudios()
+    {
+        $studios = Studio::with('ruangans')->get();
+        return response()->json(['success' => true, 'data' => $studios]);
+    }
+
+    public function getStudio($id)
+    {
+        $studio = Studio::with('ruangans')->find($id);
+        if (!$studio) {
+            return response()->json(['success' => false, 'message' => 'Studio not found'], 404);
+        }
+        return response()->json(['success' => true, 'data' => $studio]);
+    }
+}
