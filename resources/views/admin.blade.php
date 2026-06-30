@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>Admin - Manajemen Booking StudioMusik</title>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -480,13 +481,13 @@
                 </a>
             </li>
             <li style="margin-top: 2rem; padding-top: 1rem; border-top: 1px solid var(--gray-700);">
-                <a href="index.html">
+                <a href="{{ route('home') }}">
                     <i class="fas fa-home"></i>
                     <span>Halaman Utama</span>
                 </a>
             </li>
             <li>
-                <a href="#" onclick="logout()">
+                <a href="#" onclick="adminLogout()">
                     <i class="fas fa-sign-out-alt"></i>
                     <span>Logout</span>
                 </a>
@@ -500,7 +501,7 @@
         <header class="admin-header">
             <div>
                 <h2 style="margin-bottom: 0.25rem;">Dashboard Admin</h2>
-                <p style="color: var(--gray-600); font-size: 0.875rem;">Selamat datang, Maharaja!</p>
+                <p style="color: var(--gray-600); font-size: 0.875rem;">Selamat datang, {{ session('user_name') }}!</p>
             </div>
             <div style="display: flex; align-items: center; gap: 1rem;">
                 <button class="btn btn-outline btn-sm" id="mobile-menu-toggle" style="display: none;">
@@ -565,9 +566,18 @@
             <div class="card">
                 <div class="card-header flex flex-between flex-items-center">
                     <h3><i class="fas fa-history"></i> Booking Terbaru</h3>
-                    <button class="btn btn-outline btn-sm" onclick="showSection('bookings')">
-                        Lihat Semua
-                    </button>
+                    <div style="display: flex; gap: 0.5rem; align-items: center;">
+                        <select class="form-control" id="filter-status-dashboard" style="width: auto;">
+                            <option value="">Semua Status</option>
+                            <option value="pending">Menunggu</option>
+                            <option value="confirmed">Terkonfirmasi</option>
+                            <option value="completed">Selesai</option>
+                            <option value="cancelled">Dibatalkan</option>
+                        </select>
+                        <select class="form-control" id="filter-studio-dashboard" style="width: auto;">
+                            <option value="">Semua Studio</option>
+                        </select>
+                    </div>
                 </div>
                 <div class="card-body p-0">
                     <div class="table-container">
@@ -605,9 +615,9 @@
                             <option value="completed">Selesai</option>
                             <option value="cancelled">Dibatalkan</option>
                         </select>
-                        <button class="btn btn-outline btn-sm" onclick="loadAdminBookings()">
-                            <i class="fas fa-sync-alt"></i>
-                        </button>
+                        <select class="form-control" id="filter-studio-admin" style="width: auto;">
+                            <option value="">Semua Studio</option>
+                        </select>
                     </div>
                 </div>
                 <div class="card-body p-0">
@@ -739,59 +749,84 @@
     </div>
 
     <script>
+        // Set dynamic APP_URL globally for all fetch requests
+        const path = window.location.pathname;
+        const publicIndex = path.indexOf('/public');
+        const basePath = publicIndex !== -1 ? path.substring(0, publicIndex + 7) : '';
+        window.APP_URL = window.location.origin + basePath;
+
         // Global variables
         let bookingsData = [];
+        let recentBookingsData = [];
         let studiosData = [];
         let usersData = [];
         let currentUser = null;
 
-        // Initialize admin dashboard
-        document.addEventListener('DOMContentLoaded', function() {
-            checkAuthStatus();
-            loadDashboardStats();
-            loadRecentBookings();
-            setupEventListeners();
-        });
-
-        // Check authentication status
-        async function checkAuthStatus() {
-            // 1. Cek LocalStorage dulu untuk menghindari redirect visual (flash)
-            const localData = localStorage.getItem('user');
-            if (!localData) {
-                window.location.href = 'login.html';
-                return;
-            }
-
-            const localUser = JSON.parse(localData);
-            if (localUser.role !== 'admin') {
-                window.location.href = 'index.html';
-                return;
-            }
-
-            // Set sementara dari local agar UI muncul
-            currentUser = localUser;
-
-            // 2. Verifikasi ke Server
+        // Fetch studios and populate filter dropdowns
+        async function loadStudioFilters() {
             try {
-                const response = await fetch('api.php?endpoint=me&t=' + new Date().getTime());
+                const response = await fetch(window.APP_URL + '/api/studios');
                 const result = await response.json();
                 
                 if (result.success) {
-                    currentUser = result.user;
-                    // Pastikan yang login benar-benar admin
-                    if (currentUser.role !== 'admin') {
-                        window.location.href = 'index.html';
+                    const studios = result.data;
+                    const selectDashboard = document.getElementById('filter-studio-dashboard');
+                    const selectAdmin = document.getElementById('filter-studio-admin');
+                    
+                    if (selectDashboard) {
+                        selectDashboard.innerHTML = '<option value="">Semua Studio</option>';
+                        studios.forEach(studio => {
+                            const opt = document.createElement('option');
+                            opt.value = studio.id_studio;
+                            opt.textContent = studio.nama_studio;
+                            selectDashboard.appendChild(opt);
+                        });
                     }
-                } else {
-                    // Jika server menolak sesi (session expired)
-                    console.error("Session invalid via API");
-                    localStorage.removeItem('user');
-                    window.location.href = 'login.html';
+                    
+                    if (selectAdmin) {
+                        selectAdmin.innerHTML = '<option value="">Semua Studio</option>';
+                        studios.forEach(studio => {
+                            const opt = document.createElement('option');
+                            opt.value = studio.id_studio;
+                            opt.textContent = studio.nama_studio;
+                            selectAdmin.appendChild(opt);
+                        });
+                    }
                 }
             } catch (error) {
-                console.error("Network error checking auth, staying on page based on localStorage");
+                console.error('Error loading studio filters:', error);
             }
         }
+
+        // Initialize admin dashboard - auth dicek via middleware Laravel
+        document.addEventListener('DOMContentLoaded', async function() {
+            setupEventListeners();
+            await loadStudioFilters();
+            
+            // Wire up change listeners for dynamic reload on filter changes
+            const filterStatusDashboard = document.getElementById('filter-status-dashboard');
+            const filterStudioDashboard = document.getElementById('filter-studio-dashboard');
+            const filterStatusAdmin = document.getElementById('filter-status-admin');
+            const filterStudioAdmin = document.getElementById('filter-studio-admin');
+            
+            if (filterStatusDashboard) {
+                filterStatusDashboard.addEventListener('change', loadRecentBookings);
+            }
+            if (filterStudioDashboard) {
+                filterStudioDashboard.addEventListener('change', loadRecentBookings);
+            }
+            if (filterStatusAdmin) {
+                filterStatusAdmin.addEventListener('change', loadAdminBookings);
+            }
+            if (filterStudioAdmin) {
+                filterStudioAdmin.addEventListener('change', loadAdminBookings);
+            }
+            
+            showSection('dashboard');
+        });
+
+        // Auth dicek oleh middleware Laravel (AdminMiddleware)
+        // Jika tidak admin, akan di-redirect oleh server
 
         // Show admin section
         function showSection(sectionName) {
@@ -809,8 +844,10 @@
             // Update active menu
             document.querySelectorAll('.sidebar-menu a').forEach(link => {
                 link.classList.remove('active');
+                if (link.getAttribute('onclick') && link.getAttribute('onclick').includes(`'${sectionName}'`)) {
+                    link.classList.add('active');
+                }
             });
-            event.target.classList.add('active');
             
             // Load section data
             switch(sectionName) {
@@ -833,7 +870,7 @@
         // Load dashboard statistics
         async function loadDashboardStats() {
             try {
-                const response = await fetch('api.php?endpoint=dashboard-stats');
+                const response = await fetch(window.APP_URL + '/api/admin/stats');
                 const result = await response.json();
                 
                 if (result.success) {
@@ -851,10 +888,18 @@
         // Load recent bookings
         async function loadRecentBookings() {
             try {
-                const response = await fetch('api.php?endpoint=recent-bookings&limit=5');
+                const status = document.getElementById('filter-status-dashboard')?.value || '';
+                const studio = document.getElementById('filter-studio-dashboard')?.value || '';
+                
+                let url = window.APP_URL + `/api/admin/bookings/recent?limit=5`;
+                if (status) url += `&status=${status}`;
+                if (studio) url += `&id_studio=${studio}`;
+                
+                const response = await fetch(url);
                 const result = await response.json();
                 
                 if (result.success) {
+                    recentBookingsData = result.data;
                     displayRecentBookings(result.data);
                 }
             } catch (error) {
@@ -892,12 +937,17 @@
 
         // Load admin bookings
         async function loadAdminBookings() {
-            const statusFilter = document.getElementById('filter-status-admin').value;
-            
             try {
-                let url = 'api.php?endpoint=bookings';
-                if (statusFilter) {
-                    url += `&status=${statusFilter}`;
+                const status = document.getElementById('filter-status-admin')?.value || '';
+                const studio = document.getElementById('filter-studio-admin')?.value || '';
+                
+                let url = window.APP_URL + '/api/admin/bookings';
+                let params = [];
+                if (status) params.push(`status=${status}`);
+                if (studio) params.push(`id_studio=${studio}`);
+                
+                if (params.length > 0) {
+                    url += '?' + params.join('&');
                 }
                 
                 const response = await fetch(url);
@@ -977,12 +1027,19 @@
         // Load studios management
         async function loadStudiosManagement() {
             try {
-                const response = await fetch('api.php?endpoint=studios');
-                const result = await response.json();
-                
-                if (result.success) {
-                    studiosData = result.data;
-                    displayStudiosManagement(studiosData);
+                const studioRes  = await fetch(window.APP_URL + '/api/admin/studios');
+                const studioData = await studioRes.json();
+                const ruanganRes  = await fetch(window.APP_URL + '/api/admin/rooms');
+                const ruanganData = await ruanganRes.json();
+
+                if (studioData.success && ruanganData.success) {
+                    // Gabungkan ruangan ke studio
+                    const studios = studioData.data.map(s => ({
+                        ...s,
+                        ruangan: ruanganData.data.filter(r => r.id_studio === s.id_studio)
+                    }));
+                    studiosData = studios;
+                    displayStudiosManagement(studios);
                 }
             } catch (error) {
                 console.error('Error loading studios:', error);
@@ -1033,7 +1090,7 @@
         // Load users data
         async function loadUsersData() {
             try {
-                const response = await fetch('api.php?endpoint=users');
+                const response = await fetch(window.APP_URL + '/api/admin/users');
                 const result = await response.json();
                 
                 if (result.success) {
@@ -1074,9 +1131,13 @@
         async function confirmBooking(bookingId) {
             if (confirm(`Konfirmasi booking ${bookingId}?`)) {
                 try {
-                    const response = await fetch('api.php?endpoint=confirm-booking', {
+                    const csrf = document.querySelector('meta[name="csrf-token"]').content;
+                    const response = await fetch(window.APP_URL + '/api/admin/bookings/confirm', {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
+                        headers: { 
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': csrf,
+                        },
                         body: JSON.stringify({ id_booking: bookingId })
                     });
 
@@ -1085,6 +1146,7 @@
                     if (result.success) {
                         showAlert('Booking berhasil dikonfirmasi!', 'success');
                         loadAdminBookings();
+                        loadRecentBookings();
                         loadDashboardStats();
                     } else {
                         showAlert(result.message, 'error');
@@ -1099,9 +1161,13 @@
         async function cancelBooking(bookingId) {
             if (confirm(`Batalkan booking ${bookingId}?`)) {
                 try {
-                    const response = await fetch('api.php?endpoint=cancel-booking', {
+                    const csrf = document.querySelector('meta[name="csrf-token"]').content;
+                    const response = await fetch(window.APP_URL + '/api/admin/bookings/cancel', {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
+                        headers: { 
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': csrf,
+                        },
                         body: JSON.stringify({ id_booking: bookingId })
                     });
 
@@ -1110,6 +1176,7 @@
                     if (result.success) {
                         showAlert('Booking berhasil dibatalkan', 'success');
                         loadAdminBookings();
+                        loadRecentBookings();
                         loadDashboardStats();
                     } else {
                         showAlert(result.message, 'error');
@@ -1136,24 +1203,69 @@
 
         // Show booking detail
         function showBookingDetail(bookingId) {
-            const booking = bookingsData.find(b => b.id_booking === bookingId);
+            let booking = bookingsData.find(b => b.id_booking === bookingId);
+            if (!booking) {
+                booking = recentBookingsData.find(b => b.id_booking === bookingId);
+            }
             if (!booking) return;
+
+            let paymentStatusLabel = 'Belum dibayar';
+            let paymentStatusClass = 'cancelled';
+            
+            if (booking.status_pembayaran === 'verified' || booking.status_pembayaran === 'paid') {
+                paymentStatusLabel = 'Lunas';
+                paymentStatusClass = 'confirmed';
+            } else if (booking.status_pembayaran === 'waiting_verification') {
+                paymentStatusLabel = 'Menunggu Verifikasi';
+                paymentStatusClass = 'pending';
+            } else if (booking.status_pembayaran) {
+                paymentStatusLabel = booking.status_pembayaran;
+                paymentStatusClass = 'pending';
+            }
+
+            let buktiHtml = '';
+            if (booking.bukti_pembayaran) {
+                const fileUrl = window.APP_URL + '/bukti_pembayaran/' + booking.bukti_pembayaran;
+                const isPdf = booking.bukti_pembayaran.toLowerCase().endsWith('.pdf');
+                
+                buktiHtml = `
+                    <div style="margin-top: 1rem; border-top: 1px solid var(--gray-200); padding-top: 1rem;">
+                        <p><strong>Bukti Pembayaran:</strong></p>
+                        <div style="margin-top: 0.5rem; text-align: center; border: 1px solid var(--gray-200); border-radius: 0.5rem; padding: 10px; background: var(--gray-100);">
+                            ${isPdf ? `
+                                <a href="${fileUrl}" target="_blank" class="btn btn-sm btn-primary" style="display: inline-flex; align-items: center; gap: 0.5rem; text-decoration: none;">
+                                    <i class="fas fa-file-pdf"></i> Lihat Dokumen PDF
+                                </a>
+                            ` : `
+                                <a href="${fileUrl}" target="_blank" title="Klik untuk memperbesar">
+                                    <img src="${fileUrl}" alt="Bukti Pembayaran" style="max-width: 100%; max-height: 200px; border-radius: 0.25rem; box-shadow: var(--shadow-sm); cursor: pointer;">
+                                </a>
+                                <div style="font-size: 0.75rem; color: var(--gray-600); margin-top: 5px;">Klik gambar untuk melihat resolusi penuh</div>
+                            `}
+                        </div>
+                    </div>
+                `;
+            }
 
             showModal('Detail Booking', `
                 <div style="line-height: 1.8;">
                     <p><strong>ID Booking:</strong> ${booking.id_booking}</p>
                     <p><strong>Pelanggan:</strong> ${booking.nama_user}</p>
-                    <p><strong>No. HP:</strong> ${booking.no_hp}</p>
+                    <p><strong>No. HP:</strong> ${booking.no_hp || '-'}</p>
                     <p><strong>Studio:</strong> ${booking.nama_studio}</p>
-                    <p><strong>Ruangan:</strong> ${booking.nama_ruangan}</p>
+                    <p><strong>Ruangan:</strong> ${booking.nama_ruangan || '-'}</p>
                     <p><strong>Tanggal:</strong> ${formatDate(booking.tanggal_booking)}</p>
                     <p><strong>Jam:</strong> ${booking.jam_mulai} - ${booking.jam_selesai}</p>
-                    <p><strong>Durasi:</strong> ${booking.durasi} jam</p>
+                    <p><strong>Durasi:</strong> ${booking.durasi || '-'} jam</p>
                     <p><strong>Total Bayar:</strong> ${formatCurrency(booking.total_bayar)}</p>
                     <p><strong>Status:</strong> <span class="status-badge status-${booking.status_booking}">${getStatusLabel(booking.status_booking)}</span></p>
-                    <p><strong>Status Pembayaran:</strong> ${booking.status_pembayaran || 'Belum dibayar'}</p>
+                    <p><strong>Status Pembayaran:</strong> 
+                        <span class="status-badge status-${paymentStatusClass}">
+                            ${paymentStatusLabel}
+                        </span>
+                    </p>
                     ${booking.catatan ? `<p><strong>Catatan:</strong> ${booking.catatan}</p>` : ''}
-                    ${booking.bukti_pembayaran ? `<p style="margin-top:10px;"><button class="btn btn-sm btn-info" onclick="showProof('${booking.bukti_pembayaran}')">Lihat Bukti Bayar</button></p>` : ''}
+                    ${buktiHtml}
                 </div>
             `);
         }
@@ -1168,17 +1280,23 @@
             showModal('Tambah User', '<p>Fitur tambah user akan segera tersedia.</p>');
         }
 
-        // Logout function
-        function logout() {
+        // Logout function via Laravel
+        async function adminLogout() {
             if (confirm('Apakah Anda yakin ingin logout?')) {
-                // Clear session and redirect
-                fetch('auth.php?action=logout', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' }
-                }).finally(() => {
-                    localStorage.removeItem('user');
-                    window.location.href = 'login.html';
-                });
+                try {
+                    const csrf = document.querySelector('meta[name="csrf-token"]').content;
+                    const res = await fetch(window.APP_URL + '/logout', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': csrf,
+                        }
+                    });
+                    const data = await res.json();
+                    if (data.success) window.location.href = data.redirect_url || '/';
+                } catch(e) {
+                    window.location.href = '/';
+                }
             }
         }
 
@@ -1299,9 +1417,12 @@
             };
             
             try {
-                const res = await fetch('api.php?endpoint=update-room', {
+                const res = await fetch(window.APP_URL + '/api/admin/rooms/update', {
                     method: 'POST', 
-                    headers:{'Content-Type':'application/json'}, 
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+                    }, 
                     body: JSON.stringify(body)
                 });
                 const json = await res.json();
@@ -1319,9 +1440,12 @@
         async function deleteRoom(id) {
             if(!confirm('Yakin ingin menghapus ruangan ini?')) return;
             try {
-                const res = await fetch('api.php?endpoint=delete-room', {
+                const res = await fetch(window.APP_URL + '/api/admin/rooms/delete', {
                     method: 'POST', 
-                    headers:{'Content-Type':'application/json'}, 
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+                    }, 
                     body: JSON.stringify({id_ruangan: id})
                 });
                 const json = await res.json();

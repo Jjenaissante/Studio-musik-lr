@@ -1,5 +1,6 @@
 /**
- * StudioMusik Jjenaissante - Cleaned Main JS
+ * StudioMusik Jjenaissante - Main JS
+ * Dioptimasi untuk Laravel routes
  */
 
 // Global variables
@@ -11,8 +12,8 @@ document.addEventListener('DOMContentLoaded', function() {
     initializeNavigation();
     initializeModals();
     
-    // 2. Cek Status Login (Background)
-    checkAuthStatus();
+    // 2. Cek auth dari session window (di-inject Blade)
+    checkSessionUser();
     
     // 3. Load Data Studio (Hanya jika ada kontainer studionya)
     if (document.getElementById('studios-grid')) {
@@ -24,35 +25,21 @@ document.addEventListener('DOMContentLoaded', function() {
 // 1. AUTHENTICATION & UI
 // ============================
 
-async function checkAuthStatus() {
-    try {
-        // Tetap arahkan ke api.php yang ada di folder public untuk sementara
-        const response = await fetch('api.php?endpoint=me');
-        const result = await response.json();
-        
-        if (result.success) {
-            currentUser = result.user;
-            updateAuthSection();
-            // Isi form otomatis jika sedang di halaman booking
-            if(document.getElementById('nama')) document.getElementById('nama').value = currentUser.nama_user;
+function checkSessionUser() {
+    // Session di-inject oleh Blade ke window.sessionUser
+    if (window.sessionUser && window.sessionUser.logged_in) {
+        currentUser = window.sessionUser;
+        // Isi form otomatis jika sedang di halaman booking
+        if (document.getElementById('nama') && currentUser.user_name) {
+            document.getElementById('nama').value = currentUser.user_name;
         }
-    } catch (error) {
-        console.log('User status: Guest');
+        if (document.getElementById('email') && currentUser.user_email) {
+            document.getElementById('email').value = currentUser.user_email;
+        }
+        if (document.getElementById('no_hp') && currentUser.user_no_hp) {
+            document.getElementById('no_hp').value = currentUser.user_no_hp;
+        }
     }
-}
-
-function updateAuthSection() {
-    const authSection = document.getElementById('auth-section');
-    if (!authSection || !currentUser) return;
-    
-    authSection.innerHTML = `
-        <div style="display: flex; align-items: center; gap: 10px;">
-            <span class="nav-link"><i class="fas fa-user-circle"></i> ${currentUser.nama_user}</span>
-            <a href="#" onclick="handleLogout()" style="color: var(--danger-color); font-size: 1.2rem;">
-                <i class="fas fa-sign-out-alt"></i>
-            </a>
-        </div>
-    `;
 }
 
 // ============================
@@ -61,12 +48,11 @@ function updateAuthSection() {
 
 async function loadStudios() {
     try {
-        const response = await fetch('api.php?endpoint=studios');
+        const response = await fetch((window.APP_URL || '') + '/api/studios');
         const result = await response.json();
         if (result.success) {
             studiosData = result.data;
             renderStudios();
-            populateStudioDropdown();
         }
     } catch (error) {
         console.error('Gagal memuat studio:', error);
@@ -82,21 +68,69 @@ function renderStudios() {
 
     studiosData.forEach((studio, index) => {
         const card = document.createElement('div');
-        card.className = 'card studio-card';
+        card.className = 'studio-card';
         
         const imageSrc = studio.foto ? `img/${studio.foto}` : defaultImages[index % defaultImages.length];
 
+        // Format operational hours
+        const formatTime = (timeStr) => {
+            if (!timeStr) return '';
+            return timeStr.substring(0, 5); // take HH:mm
+        };
+        const jamBuka = formatTime(studio.jam_buka) || '08:00';
+        const jamTutup = formatTime(studio.jam_tutup) || '22:00';
+
+        // Rooms list html
+        let ruanganHtml = '';
+        if (studio.ruangan && studio.ruangan.length > 0) {
+            studio.ruangan.forEach(r => {
+                const tarifFormatted = 'Rp ' + Number(r.tarif_per_jam).toLocaleString('id-ID');
+                if (r.status === 'maintenance') {
+                    ruanganHtml += `
+                        <div class="ruangan-item-card" style="background: #fef3c7; border-left: 4px solid #f59e0b; opacity: 0.85;">
+                            <div class="ruangan-info-left" style="text-align: left;">
+                                <div class="ruangan-name-label" style="color: #92400e; font-weight: 600;">${r.nama_ruangan}</div>
+                                <div class="ruangan-capacity-label" style="color: #b45309; font-weight: 500;">
+                                    <i class="fas fa-tools"></i> Sedang Maintenance
+                                </div>
+                            </div>
+                            <div class="ruangan-price-right" style="color: #b45309; font-weight: 700;">-</div>
+                        </div>
+                    `;
+                } else {
+                    ruanganHtml += `
+                        <div class="ruangan-item-card">
+                            <div class="ruangan-info-left">
+                                <div class="ruangan-name-label">${r.nama_ruangan}</div>
+                                <div class="ruangan-capacity-label">Kap: ${r.kapasitas} org</div>
+                            </div>
+                            <div class="ruangan-price-right">${tarifFormatted}</div>
+                        </div>
+                    `;
+                }
+            });
+        } else {
+            ruanganHtml = '<div style="text-align: center; color: var(--gray-600); font-size: 0.85rem; padding: 1rem 0;">Tidak ada ruangan tersedia.</div>';
+        }
+
         card.innerHTML = `
-            <div class="studio-image" style="height: 200px; overflow: hidden;">
+            <div class="studio-image-container">
                 <img src="${imageSrc}" alt="${studio.nama_studio}" 
-                     style="width: 100%; height: 100%; object-fit: cover;"
                      onerror="this.src='https://via.placeholder.com/400x200?text=No+Image'">
+                <div class="studio-hours-pill">
+                    <i class="far fa-clock"></i> ${jamBuka} - ${jamTutup}
+                </div>
             </div>
-            <div class="card-body">
-                <h3 class="card-title">${studio.nama_studio}</h3>
-                <p class="card-text"><i class="fas fa-map-marker-alt" style="color: var(--danger-color);"></i> ${studio.alamat}</p>
-                <button onclick="pilihStudioUntukBooking('${studio.id_studio}')" class="btn btn-primary btn-block">
-                    Pilih Studio
+            <div class="studio-card-body">
+                <h3 class="studio-title-main">${studio.nama_studio}</h3>
+                <div class="studio-address-row">
+                    <i class="fas fa-map-marker-alt"></i> ${studio.alamat || '-'}
+                </div>
+                <div class="ruangan-list-container">
+                    ${ruanganHtml}
+                </div>
+                <button onclick="pilihStudioUntukBooking('${studio.id_studio}')" class="btn-booking-action">
+                    Booking Sekarang
                 </button>
             </div>
         `;
@@ -104,14 +138,15 @@ function renderStudios() {
     });
 }
 
-// Fungsi tambahan agar saat klik "Pilih Studio", dropdown di form otomatis terisi
+// Saat klik "Pilih Studio", dropdown di form otomatis terisi
 function pilihStudioUntukBooking(idStudio) {
     const selectStudio = document.getElementById('studio');
     if (selectStudio) {
         selectStudio.value = idStudio;
-        // Trigger event change manual agar dropdown ruangan ikut update
         selectStudio.dispatchEvent(new Event('change'));
-        window.location.href = '#booking';
+        setTimeout(() => {
+            window.location.href = '#booking';
+        }, 300);
     }
 }
 
@@ -138,9 +173,11 @@ function initializeModals() {
 }
 
 function showModal(title, content) {
+    const modalEl = document.getElementById('modal');
+    if (!modalEl) return;
     document.getElementById('modal-title').textContent = title;
     document.getElementById('modal-body').innerHTML = content;
-    document.getElementById('modal').classList.add('active');
+    modalEl.classList.add('active');
 }
 
-console.log('Main JS Pangkas Berhasil Dimuat!');
+console.log('StudioMusik Laravel JS Loaded!');

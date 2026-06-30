@@ -3,9 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>Kalender Booking - StudioMusik Jjenaissante</title>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ asset('style.css') }}">
     <style>
         :root {
             --primary-color: #4f46e5;
@@ -275,11 +277,24 @@
 
         .booking-preview {
             font-size: 0.75rem;
-            color: var(--gray-600);
+            color: #b91c1c; /* dark red text */
+            background: #fee2e2; /* light red background */
+            border-left: 3px solid #ef4444; /* solid red indicator */
+            padding: 3px 6px;
+            border-radius: 4px;
             margin-bottom: 0.25rem;
+            font-weight: 500;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
+            transition: all 0.2s ease;
+        }
+
+        .booking-preview:hover {
+            transform: scale(1.02);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            filter: brightness(0.95);
         }
 
         /* Sidebar */
@@ -577,22 +592,51 @@
     <!-- Navigation -->
     <nav class="navbar" id="navbar">
         <div class="nav-container">
-            <a href="index.html" class="nav-logo">
+            <a href="{{ route('home') }}" class="nav-logo">
                 <i class="fas fa-music"></i>
                 <span>StudioMusik Jjenaissante</span>
             </a>
             
             <ul class="nav-menu" id="nav-menu">
-                <li><a href="index.html" class="nav-link">Beranda</a></li>
-                <li><a href="index.html#studios" class="nav-link">Studio</a></li>
-                <li><a href="calendar.html" class="nav-link active">Kalender</a></li>
-                <li><a href="index.html#booking" class="nav-link">Booking</a></li>
-                <li><a href="index.html#about" class="nav-link">Tentang</a></li>
-                <li id="auth-section">
-                    <a href="login.html" class="nav-link" id="login-btn" style="background: var(--primary-color); color: white; padding: 0.5rem 1rem; border-radius: 0.5rem; margin-left: 1rem;">
-                        <i class="fas fa-sign-in-alt"></i> Login
-                    </a>
-                </li>
+                <li><a href="{{ route('home') }}" class="nav-link">Beranda</a></li>
+                <li><a href="{{ route('home') }}#studios" class="nav-link">Studio</a></li>
+                <li><a href="{{ route('calendar') }}" class="nav-link active">Kalender</a></li>
+                <li><a href="{{ route('home') }}#booking" class="nav-link">Booking</a></li>
+                @if(session('logged_in'))
+                    @if(session('role') === 'admin')
+                        <li><a href="{{ route('admin.dashboard') }}" class="nav-link">Dashboard Admin</a></li>
+                    @else
+                        <li><a href="{{ route('history') }}" class="nav-link">Riwayat</a></li>
+                        <li class="nav-item-notification">
+                            <button class="nav-notification-btn" id="notification-btn" title="Notifikasi">
+                                <i class="fas fa-bell"></i>
+                                <span class="notification-badge" id="notification-badge" style="display: none;">0</span>
+                            </button>
+                            <div class="notification-dropdown" id="notification-dropdown">
+                                <div class="notification-header">
+                                    <span>Notifikasi</span>
+                                    <button id="mark-all-read-btn">Tandai semua dibaca</button>
+                                </div>
+                                <div class="notification-body" id="notification-list">
+                                    <div class="notification-loading">Memuat notifikasi...</div>
+                                </div>
+                            </div>
+                        </li>
+                    @endif
+                    <li id="auth-section">
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <span class="nav-link"><i class="fas fa-user-circle"></i> {{ session('user_name') }}</span>
+                            <a href="#" onclick="handleLogout()" style="color: var(--danger-color); font-size: 1.2rem;" title="Logout"><i class="fas fa-sign-out-alt"></i></a>
+                        </div>
+                    </li>
+                @else
+                    <li><a href="{{ route('history') }}" class="nav-link">Riwayat</a></li>
+                    <li id="auth-section">
+                        <a href="{{ route('login') }}" class="nav-link" style="background: var(--primary-color); color: white; padding: 0.5rem 1rem; border-radius: 0.5rem; margin-left: 1rem;">
+                            <i class="fas fa-sign-in-alt"></i> Login
+                        </a>
+                    </li>
+                @endif
             </ul>
             
             <div class="nav-toggle" id="nav-toggle">
@@ -669,7 +713,7 @@
                         <button class="btn btn-primary" style="width: 100%;" onclick="openBookingForm()">
                             <i class="fas fa-plus"></i> Booking Baru
                         </button>
-                        <button class="btn btn-outline" style="width: 100%; margin-top: 0.5rem;" onclick="window.location.href='index.html#booking'">
+                        <button class="btn btn-outline" style="width: 100%; margin-top: 0.5rem;" onclick="window.location.href='{{ route('home') }}#booking'">
                             <i class="fas fa-arrow-right"></i> Form Booking
                         </button>
                     </div>
@@ -723,6 +767,12 @@
     </div>
 
     <script>
+        // Set dynamic APP_URL globally for all fetch requests
+        const path = window.location.pathname;
+        const publicIndex = path.indexOf('/public');
+        const basePath = publicIndex !== -1 ? path.substring(0, publicIndex + 7) : '';
+        window.APP_URL = window.location.origin + basePath;
+
         // Global variables
         let currentDate = new Date();
         let studiosData = [];
@@ -739,33 +789,37 @@
             renderCalendar();
         });
 
-        // Check authentication status
-        async function checkAuthStatus() {
-            try {
-                const response = await fetch('api.php?endpoint=me');
-                const result = await response.json();
-                
-                if (result.success) {
-                    currentUser = result.user;
-                    updateAuthSection();
-                }
-            } catch (error) {
-                console.log('User not logged in');
+        // Session dari server
+        window.sessionUser = {
+            logged_in: {{ session('logged_in') ? 'true' : 'false' }},
+            user_id: {{ session('user_id', 'null') }},
+            user_name: @json(session('user_name')),
+            role: @json(session('role')),
+        };
+
+        // Check authentication status dari session
+        function checkAuthStatus() {
+            if (window.sessionUser && window.sessionUser.logged_in) {
+                currentUser = window.sessionUser;
             }
         }
 
-        // Update auth section
-        function updateAuthSection() {
-            const authSection = document.getElementById('auth-section');
-            if (currentUser) {
-                authSection.innerHTML = `
-                    <div class="nav-link" style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;" onclick="window.location.href='profile.html'">
-                        <i class="fas fa-user-circle"></i>
-                        <span>${currentUser.nama_user}</span>
-                    </div>
-                `;
-            }
+        async function handleLogout() {
+            try {
+                const res = await fetch(window.APP_URL + '/logout', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                    }
+                });
+                const data = await res.json();
+                if (data.success) window.location.href = data.redirect_url || '/';
+            } catch(e) { window.location.href = '/'; }
         }
+
+        // Auth section ditangani server-side via Blade
 
         // Setup event listeners
         function setupEventListeners() {
@@ -790,8 +844,11 @@
                 renderCalendar();
             });
 
-            // Studio filter
-            document.getElementById('studio-filter').addEventListener('change', renderCalendar);
+            // Studio filter - reload data dari server
+            document.getElementById('studio-filter').addEventListener('change', function() {
+                allBookings = [];
+                loadAllBookings();
+            });
 
             // Modal close
             document.getElementById('modal-close').addEventListener('click', closeModal);
@@ -803,7 +860,7 @@
         // Load studios
         async function loadStudios() {
             try {
-                const response = await fetch('api.php?endpoint=studios');
+                const response = await fetch(window.APP_URL + '/api/studios');
                 const result = await response.json();
                 
                 if (result.success) {
@@ -827,14 +884,21 @@
             });
         }
 
-        // Load all bookings
+        // Load all bookings (public endpoint - no login required)
         async function loadAllBookings() {
             try {
-                const response = await fetch('api.php?endpoint=bookings');
+                const year  = currentDate.getFullYear();
+                const month = currentDate.getMonth() + 1;
+                const studioId = document.getElementById('studio-filter').value;
+                let url = window.APP_URL + `/api/bookings/calendar?year=${year}&month=${month}`;
+                if (studioId) url += `&id_studio=${studioId}`;
+                
+                const response = await fetch(url);
                 const result = await response.json();
                 
                 if (result.success) {
                     allBookings = result.data;
+                    renderCalendar();
                 }
             } catch (error) {
                 console.error('Error loading bookings:', error);
@@ -859,20 +923,8 @@
             const daysInMonth = lastDay.getDate();
             const startingDayOfWeek = firstDay.getDay();
             
-            // Get selected studio filter
-            const selectedStudio = document.getElementById('studio-filter').value;
-            
-            // Filter bookings
+            // Filter sudah dilakukan di server sisi - tidak perlu filter client side
             let filteredBookings = allBookings;
-            if (selectedStudio) {
-                filteredBookings = allBookings.filter(booking => {
-                    const studio = studiosData.find(s => s.id_studio === selectedStudio);
-                    if (studio && studio.ruangan) {
-                        return studio.ruangan.some(r => r.id_ruangan === booking.id_ruangan);
-                    }
-                    return false;
-                });
-            }
             
             // Clear calendar
             const calendarDays = document.getElementById('calendar-days');
@@ -919,21 +971,6 @@
                     countElement.className = 'booking-count';
                     countElement.textContent = `${dayBookings.length} booking`;
                     dayElement.appendChild(countElement);
-                    
-                    // Show first few bookings
-                    dayBookings.slice(0, 2).forEach(booking => {
-                        const previewElement = document.createElement('div');
-                        previewElement.className = 'booking-preview';
-                        previewElement.textContent = `${booking.jam_mulai} - ${booking.nama_studio}`;
-                        dayElement.appendChild(previewElement);
-                    });
-                    
-                    if (dayBookings.length > 2) {
-                        const moreElement = document.createElement('div');
-                        moreElement.className = 'booking-preview';
-                        moreElement.textContent = `+${dayBookings.length - 2} lainnya`;
-                        dayElement.appendChild(moreElement);
-                    }
                 }
                 
                 // Add click event
@@ -976,12 +1013,35 @@
                 bookings.forEach(booking => {
                     const item = document.createElement('div');
                     item.className = 'booking-item';
+                    item.style.cssText = `
+                        border-left: 4px solid var(--danger-color);
+                        padding: 12px;
+                        background: #fff5f5;
+                        margin-bottom: 10px;
+                        border-radius: 8px;
+                        cursor: pointer;
+                        box-shadow: var(--shadow-sm);
+                        transition: all 0.2s ease;
+                    `;
+                    
+                    item.addEventListener('mouseenter', () => {
+                        item.style.transform = 'translateX(3px)';
+                        item.style.background = '#fee2e2';
+                    });
+                    item.addEventListener('mouseleave', () => {
+                        item.style.transform = 'none';
+                        item.style.background = '#fff5f5';
+                    });
+
                     item.innerHTML = `
-                        <div class="booking-time">${booking.jam_mulai} - ${booking.jam_selesai}</div>
-                        <div class="booking-studio">${booking.nama_studio}</div>
-                        <div class="booking-room">${booking.nama_ruangan}</div>
-                        <div class="booking-status status-${booking.status_booking}">
-                            ${getStatusLabel(booking.status_booking)}
+                        <div style="font-size: 0.85rem; line-height: 1.6; color: var(--gray-900); text-align: left;">
+                            <i class="fas fa-exclamation-triangle" style="color: var(--danger-color); margin-right: 6px;"></i>
+                            Pada tanggal <strong>${formattedDate}</strong>, ruangan <strong>${booking.nama_ruangan}</strong> di <strong>${booking.nama_studio}</strong> sudah dibooking pada jam <strong>${booking.jam_mulai} - ${booking.jam_selesai}</strong>.
+                        </div>
+                        <div style="display: flex; justify-content: flex-end; margin-top: 6px;">
+                            <span class="booking-status status-${booking.status_booking}" style="font-size: 0.7rem; padding: 2px 8px; border-radius: 99px;">
+                                ${getStatusLabel(booking.status_booking)}
+                            </span>
                         </div>
                     `;
                     
@@ -1015,13 +1075,13 @@
 
         // Open booking form
         function openBookingForm() {
-            if (!currentUser) {
+            if (!currentUser || !currentUser.logged_in) {
                 showModal('Login Diperlukan', `
                     <div class="text-center">
                         <i class="fas fa-sign-in-alt" style="font-size: 3rem; color: var(--primary-color); margin-bottom: 1rem;"></i>
-                        <p>Silakan login terlebih dahulu untuk melakukan booking.</p>
-                        <button class="btn btn-primary" onclick="window.location.href='login.html'">Login</button>
-                        <button class="btn btn-outline" onclick="closeModal()" style="margin-left: 0.5rem;">Batal</button>
+                        <p style="margin-bottom: 1rem;">Silakan login terlebih dahulu untuk melakukan booking.</p>
+                        <a href="/login" class="btn btn-primary">Login</a>
+                        <a href="/register" class="btn btn-outline" style="margin-left: 0.5rem;">Daftar</a>
                     </div>
                 `);
                 return;
@@ -1032,8 +1092,8 @@
                 return;
             }
             
-            // Redirect to booking form with selected date
-            window.location.href = `index.html#booking?date=${selectedDate}`;
+            // Redirect ke form booking
+            window.location.href = `/?date=${selectedDate}#booking`;
         }
 
         // Utility functions
@@ -1070,5 +1130,6 @@
             document.getElementById('modal').classList.remove('active');
         }
     </script>
+    <script src="{{ asset('notifications.js') }}"></script>
 </body>
 </html>

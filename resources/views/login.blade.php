@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login - StudioMusik Jjenaissante</title>
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght=300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
@@ -13,7 +14,7 @@
         :root {
             --primary-color: #4f46e5;
             --primary-dark: #3730a3;
-            --gray-100: #f3f4f6;
+            --gray-100: #3730a3;  
             --gray-200: #e5e7eb;
             --gray-300: #d1d5db;
             --gray-600: #4b5563;
@@ -43,7 +44,7 @@
             max-width: 450px;
             width: 100%;
             padding: 2.5rem;
-            background: #ffffff;
+            background: #fefefeff;
             border-radius: 1rem;
             box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
         }
@@ -177,8 +178,8 @@
 
     <div class="login-container">
         <div class="login-header">
-            <h1>Selamat Datang Kembali</h1>
-            <p>Masuk untuk mengelola booking studio musik Anda</p>
+            <h1>Selamat Datang Kembali!</h1>
+            <p>Masuk untuk mengetahui lebih lanjut!</p>
         </div>
 
         <div id="alert-container"></div>
@@ -201,11 +202,19 @@
         </form>
 
         <div class="login-footer">
-            Belum punya akun? <a href="register.html">Daftar Sekarang</a>
+            Belum punya akun? <a href="{{ route('register') }}">Daftar Sekarang</a>
+        </div>
+        <div class="login-footer" style="margin-top: 0.5rem;">
+            <a href="{{ route('home') }}"><i class="fas fa-arrow-left"></i> Kembali ke Beranda</a>
         </div>
     </div>
 
     <script>
+        const path = window.location.pathname;
+        const publicIndex = path.indexOf('/public');
+        const basePath = publicIndex !== -1 ? path.substring(0, publicIndex + 7) : '';
+        window.APP_URL = window.location.origin + basePath;
+
         document.getElementById('loginForm').addEventListener('submit', async function(e) {
             e.preventDefault();
             
@@ -220,11 +229,12 @@
             btnSubmit.disabled = true;
 
             try {
-                const response = await fetch('/login', {
+                const response = await fetch(window.APP_URL + '/login', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': document.querySelector('input[name="_token"]').value
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
                     },
                     body: JSON.stringify({ email, password })
                 });
@@ -234,8 +244,8 @@
                 if (response.ok && result.success) {
                     showAlert('Login berhasil! Mengalihkan...', 'success');
                     setTimeout(() => {
-                        window.location.href = '/'; 
-                    }, 1500);
+                        window.location.href = result.redirect_url || '/'; 
+                    }, 1000);
                 } else {
                     showAlert(result.message || 'Email atau password salah.', 'error');
                     btnSubmit.innerHTML = '<i class="fas fa-sign-in-alt"></i> Login Sekarang';

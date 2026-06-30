@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Daftar Akun - StudioMusik Jjenaissante</title>
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -286,12 +287,18 @@
             </div>
             
             <div class="auth-footer">
-                <p>Sudah punya akun? <a href="login.html">Login di sini</a></p>
+                <p>Sudah punya akun? <a href="{{ route('login') }}">Login di sini</a></p>
+                <p><a href="{{ route('home') }}"><i class="fas fa-arrow-left"></i> Kembali ke Beranda</a></p>
             </div>
         </div>
     </div>
 
     <script>
+        const path = window.location.pathname;
+        const publicIndex = path.indexOf('/public');
+        const basePath = publicIndex !== -1 ? path.substring(0, publicIndex + 7) : '';
+        window.APP_URL = window.location.origin + basePath;
+
         // Check if user is already logged in
         document.addEventListener('DOMContentLoaded', function() {
             checkAuthStatus();
@@ -301,12 +308,12 @@
         // Check authentication status
         async function checkAuthStatus() {
             try {
-                const response = await fetch('api.php?endpoint=me');
+                const response = await fetch(window.APP_URL + '/auth/me');
                 const result = await response.json();
                 
                 if (result.success) {
                     // User is already logged in, redirect to home
-                    window.location.href = 'index.html';
+                    window.location.href = '/';
                 }
             } catch (error) {
                 console.log('User not logged in');
@@ -407,11 +414,19 @@
             btnSubmit.disabled = true;
 
             try {
-                const response = await fetch('auth.php?action=register', {
+                const csrfToken = document.querySelector('meta[name="csrf-token"]') 
+                    ? document.querySelector('meta[name="csrf-token"]').content
+                    : '';
+
+                const response = await fetch(window.APP_URL + '/register', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': csrfToken,
+                    },
                     body: JSON.stringify({
-                        name: nama,
+                        nama: nama,
                         email: email,
                         no_hp: no_hp,
                         password: password
@@ -425,7 +440,7 @@
                     
                     // Redirect after 2 seconds
                     setTimeout(() => {
-                        window.location.href = 'login.html';
+                        window.location.href = '/login';
                     }, 2000);
                 } else {
                     showAlert(result.message, 'error');
